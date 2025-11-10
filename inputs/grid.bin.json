@@ -1,0 +1,8 @@
+{
+  "firstcell": 32180,
+  "ncell": 350,
+  "scalar": 0.01,
+  "cellsize_lon": 0.5,
+  "cellsize_lat": 0.5,
+  "note": "Replaced with full Spain grid metadata 2025-11-10"
+}

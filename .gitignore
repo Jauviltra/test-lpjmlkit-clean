@@ -1,0 +1,21 @@
+# R and editor
+.Rhistory
+.RData
+.Rproj.user/
+
+# outputs and runtime
+output/
+figures/
+tmp/
+tmp*/
+*.log
+
+# renv local library
+renv/library/
+renv/staging/
+
+# large inputs (keep out)
+LPJmL/inputs/
+inputs/*.bin
+inputs/*.nc
+
