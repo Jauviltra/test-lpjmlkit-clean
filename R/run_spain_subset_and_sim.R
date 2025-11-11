@@ -80,7 +80,7 @@ spinup_cfg <- lpjmlkit::write_config(x = spinup_params, model_path = model_path,
 simulation_params <- tibble::tibble(
   sim_name = 'scenario_1',
   inpath = file.path(model_path, 'inputs'),
-  -DFROM_RESTART = TRUE,
+  `-DFROM_RESTART` = TRUE,
   restart_filename = 'restart/spinup/restart.lpj',
   startgrid = startgrid,
   endgrid = endgrid,
