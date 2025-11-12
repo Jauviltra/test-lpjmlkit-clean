@@ -14,7 +14,7 @@ use_cores <- 4
 first_year <- 1901
 last_year <- 1910
 
-model_path <- '/home/jvt/LPJmL'
+model_path <- '/home/usuario/LPJmL'
 sim_path <- file.path(model_path, 'simulation')
 
 # gridbin path (adjust if your grid.bin is elsewhere)
