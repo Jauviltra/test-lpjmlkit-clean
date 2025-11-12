@@ -1,0 +1,10 @@
+spain: fix runner to use repo grid and write correct config
+
+- Prefer repo-local inputs/grid.bin and inputs/grid.bin.json when present.
+- Fix prepare_subset() return handling (use res$csv) to avoid file.exists() errors.
+- Use `-DFROM_RESTART` key in simulation params so lpjmlkit writes the FROM_RESTART macro.
+- Update documentation (PICKUP_LPJML_v3.md) with the exact WSL command used successfully and a brief changelog.
+
+Notes:
+- R/run_spain_with_repo_grid.R is a small wrapper that sets gridbin/grid_json and sources the main runner; it is optional and can be deleted if you want to keep the repo minimal.
+- No tmp_run_spain_now.R was found in the repo.

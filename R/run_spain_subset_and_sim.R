@@ -18,9 +18,29 @@ model_path <- '/home/jvt/LPJmL'
 sim_path <- file.path(model_path, 'simulation')
 
 # gridbin path (adjust if your grid.bin is elsewhere)
-gridbin <- '/home/jvt/old_repos/test-lpjmlkit.bak_1761638288/lpjm_inputs_spain/grid.bin'
-grid_json <- NULL
-if (file.exists(paste0(gridbin, '.json'))) grid_json <- paste0(gridbin, '.json')
+# Prefer a repo-local `inputs/grid.bin` when present to make runs reproducible.
+# Allow overriding `gridbin`/`grid_json` from the environment or caller by
+# only assigning defaults when they don't already exist.
+repo_grid <- file.path(getwd(), 'inputs', 'grid.bin')
+repo_grid_json <- paste0(repo_grid, '.json')
+if (!exists('gridbin')) {
+  if (file.exists(repo_grid)) {
+    gridbin <- repo_grid
+  } else {
+    # fallback to the legacy path used previously (update if you keep a different location)
+    gridbin <- '/home/jvt/old_repos/test-lpjmlkit.bak_1761638288/lpjm_inputs_spain/grid.bin'
+  }
+}
+if (!exists('grid_json')) {
+  # Prefer explicit repo json if available, otherwise use gridbin.json when present
+  if (file.exists(repo_grid_json)) {
+    grid_json <- repo_grid_json
+  } else if (file.exists(paste0(gridbin, '.json'))) {
+    grid_json <- paste0(gridbin, '.json')
+  } else {
+    grid_json <- NULL
+  }
+}
 
 # create config dir and save parameters
 cfg_dir <- file.path(getwd(), 'config')
@@ -41,7 +61,15 @@ cat('prepare_subset results:\n')
 print(res)
 
 # read produced csv and determine start/end indices
-csvf <- res
+# `prepare_subset()` returns a list(list(csv=..., txt=..., header=...))
+# but older code assumed it returned a single path. Handle both cases.
+if (is.list(res) && !is.null(res$csv)) {
+  csvf <- res$csv
+} else if (is.character(res) && length(res) == 1) {
+  csvf <- res
+} else {
+  stop('Unexpected return value from prepare_subset(): ', class(res))
+}
 if (!file.exists(csvf)) stop('Expected CSV not found: ', csvf)
 df <- readr::read_csv(csvf, show_col_types = FALSE)
 cn <- tolower(names(df))
