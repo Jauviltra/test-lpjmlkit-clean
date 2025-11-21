@@ -1,134 +1,90 @@
-#!/usr/bin/env Rscript
-# Run full Spain subset and LPJmL simulation (spinup + scenario)
-# - saves a config JSON under config/spain_subset_config.json
-# - calls prepare_subset() with bbox and method='overlap'
-# - writes LPJmL configs and runs LPJmL via lpjmlkit
+# Change these paths for your computer
+model_path <- "/home/usuario/LPJmL"
+sim_path <- "/home/usuario/LPJmL/simulation"
 
-if (!requireNamespace('jsonlite', quietly=TRUE)) stop('Install jsonlite')
-if (!requireNamespace('readr', quietly=TRUE)) stop('Install readr')
+# Use to run only subset of cells
+# Works because cells with null soil type value are skipped
+# (https://github.com/PIK-LPJmL/LPJmL/issues/71)
+# Check to generate this in `R/prepare_subset.R`
+# Otherwise set to `NA` to use default
+input_soil_path <- file.path("soil/soil_types_subset.nc")
 
-# parameters (editable)
-bbox <- '-9.5,36.0,3.5,44.5'
-method <- 'overlap'
-use_cores <- 4
-first_year <- 1901
-last_year <- 1910
+# Running only for a subset of cells, set to NA to run all
+# cells with a non-null soil type value.
+# Actually NA means to use default values in `lpjml_config.cjson`
+startgrid <- NA
+endgrid <- NA
 
-model_path <- '/home/usuario/LPJmL'
-sim_path <- file.path(model_path, 'simulation')
+# Adapt to the number of CPU cores of your computer
+# If you get an error message about cores when running, try to reduce them
+use_cores <- 1
 
-# gridbin path (adjust if your grid.bin is elsewhere)
-# Prefer a repo-local `inputs/grid.bin` when present to make runs reproducible.
-# Allow overriding `gridbin`/`grid_json` from the environment or caller by
-# only assigning defaults when they don't already exist.
-repo_grid <- file.path(getwd(), 'inputs', 'grid.bin')
-repo_grid_json <- paste0(repo_grid, '.json')
-if (!exists('gridbin')) {
-  if (file.exists(repo_grid)) {
-    gridbin <- repo_grid
-  } else {
-    # fallback to the legacy path used previously (update if you keep a different location)
-    gridbin <- '/home/jvt/old_repos/test-lpjmlkit.bak_1761638288/lpjm_inputs_spain/grid.bin'
-  }
-}
-if (!exists('grid_json')) {
-  # Prefer explicit repo json if available, otherwise use gridbin.json when present
-  if (file.exists(repo_grid_json)) {
-    grid_json <- repo_grid_json
-  } else if (file.exists(paste0(gridbin, '.json'))) {
-    grid_json <- paste0(gridbin, '.json')
-  } else {
-    grid_json <- NULL
-  }
-}
+# Actual simulation year ranges (after the spinup)
+simulation_start_year <- 1901
+simulation_end_year <- 1902
 
-# create config dir and save parameters
-cfg_dir <- file.path(getwd(), 'config')
-dir.create(cfg_dir, recursive = TRUE, showWarnings = FALSE)
-cfg <- list(bbox = bbox, method = method, use_cores = use_cores, first_year = first_year, last_year = last_year, gridbin = gridbin, grid_json = grid_json, model_path = model_path, sim_path = sim_path)
-jsonlite::write_json(cfg, file.path(cfg_dir, 'spain_subset_config.json'), auto_unbox = TRUE, pretty = TRUE)
-cat('Wrote config to', file.path(cfg_dir, 'spain_subset_config.json'), '\n')
-
-# source prepare_subset function
-prep_path <- file.path(getwd(), 'R', 'prepare_subset.R')
-if (!file.exists(prep_path)) stop('prepare_subset.R not found at ', prep_path)
-source(prep_path)
-
-out_dir <- '/tmp/test-lpjmlkit-smoke/outputs'
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-res <- prepare_subset(gridbin = gridbin, grid_json = grid_json, out_dir = out_dir, out_basename = 'spain_subset', indices = NULL, bbox = bbox, method = method)
-cat('prepare_subset results:\n')
-print(res)
-
-# read produced csv and determine start/end indices
-# `prepare_subset()` returns a list(list(csv=..., txt=..., header=...))
-# but older code assumed it returned a single path. Handle both cases.
-if (is.list(res) && !is.null(res$csv)) {
-  csvf <- res$csv
-} else if (is.character(res) && length(res) == 1) {
-  csvf <- res
-} else {
-  stop('Unexpected return value from prepare_subset(): ', class(res))
-}
-if (!file.exists(csvf)) stop('Expected CSV not found: ', csvf)
-df <- readr::read_csv(csvf, show_col_types = FALSE)
-cn <- tolower(names(df))
-if ('index' %in% cn) {
-  idx_col <- df[[which(cn == 'index')]]
-} else if ('id' %in% cn) {
-  idx_col <- df[[which(cn == 'id')]]
-} else if ('cell_id' %in% cn) {
-  idx_col <- df[[which(cn == 'cell_id')]]
-} else {
-  # fallback: try first column
-  idx_col <- df[[1]]
-}
-startgrid <- min(idx_col, na.rm = TRUE)
-endgrid <- max(idx_col, na.rm = TRUE)
-cat('Selected grid indices:', startgrid, 'to', endgrid, '\n')
-
-# prepare LPJmL configs using lpjmlkit
-if (!requireNamespace('lpjmlkit', quietly = TRUE)) stop('Install lpjmlkit')
-if (!requireNamespace('tibble', quietly = TRUE)) stop('Install tibble')
-
-# spinup params
+# Only spinup phase, no simulation
+# I wrote firstyear/lastyear for simulation_start_year because I didn't
+# know how to choose no years at all
+# Though I wrote everything in one script, spinup is meant to be run only once
 spinup_params <- tibble::tibble(
-  sim_name = 'spinup',
-  inpath = file.path(model_path, 'inputs'),
+  sim_name = "spinup",
+  inpath = file.path(model_path, "inputs"),
   startgrid = startgrid,
   endgrid = endgrid,
   river_routing = FALSE,
   nspinup = 2,
-  firstyear = first_year,
-  lastyear = first_year
+  firstyear = simulation_start_year,
+  lastyear = simulation_start_year,
+  `input.soil.name` = input_soil_path
 )
-spinup_cfg <- lpjmlkit::write_config(x = spinup_params, model_path = model_path, sim_path = sim_path, debug = TRUE)
 
-# simulation params
+spinup_config_details <- lpjmlkit::write_config(
+  x = spinup_params,
+  model_path = model_path,
+  sim_path = sim_path,
+  debug = TRUE
+)
+
+
+# Actual simulation scenarios after spinup. Tibble can have multiple rows,
+# one for each scenario to simulate. It uses the `-DFROM_RESTART` macro
+# to indicate that we use the already run spinup
 simulation_params <- tibble::tibble(
-  sim_name = 'scenario_1',
-  inpath = file.path(model_path, 'inputs'),
+  sim_name = "scenario_1",
+  inpath = file.path(model_path, "inputs"),
   `-DFROM_RESTART` = TRUE,
-  restart_filename = 'restart/spinup/restart.lpj',
+  restart_filename = "restart/spinup/restart.lpj",
   startgrid = startgrid,
   endgrid = endgrid,
   river_routing = FALSE,
   nspinup = 0,
-  firstyear = first_year,
-  lastyear = last_year
+  firstyear = simulation_start_year,
+  lastyear = simulation_end_year,
+  `input.soil.name` = input_soil_path
 )
-sim_cfg <- lpjmlkit::write_config(x = simulation_params, model_path = model_path, sim_path = sim_path, debug = TRUE)
 
-# run LPJmL: spinup then simulation
-run_cmd <- sprintf('mpirun -np %d ', use_cores)
-cat('Running spinup with command:', run_cmd, '\n')
-spinup_run <- lpjmlkit::run_lpjml(spinup_cfg, model_path, sim_path, run_cmd = run_cmd)
-cat('Spinup run output:\n')
-print(spinup_run)
+simulation_config_details <- lpjmlkit::write_config(
+  x = simulation_params,
+  model_path = model_path,
+  sim_path = sim_path,
+  debug = TRUE
+)
 
-cat('Running simulation with command:', run_cmd, '\n')
-sim_run <- lpjmlkit::run_lpjml(sim_cfg, model_path, sim_path, run_cmd = run_cmd)
-cat('Simulation run output:\n')
-print(sim_run)
+# Previous was just setting up configuration, now actually running the model
 
-cat('Done. Check outputs under', file.path(sim_path, 'output'), '\n')
+# As mentioned before, this can be run only once
+spinup_run_details <- lpjmlkit::run_lpjml(
+  spinup_config_details,
+  model_path,
+  sim_path,
+  run_cmd = stringr::str_glue("mpirun -np {use_cores} ")
+)
+
+# This runs the simulations starting after the spinup
+simulation_run_details <- lpjmlkit::run_lpjml(
+  simulation_config_details,
+  model_path,
+  sim_path,
+  run_cmd = stringr::str_glue("mpirun -np {use_cores} ")
+)
