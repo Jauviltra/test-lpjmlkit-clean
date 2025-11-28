@@ -36,7 +36,8 @@ spinup_params <- tibble::tibble(
   nspinup = 2,
   firstyear = simulation_start_year,
   lastyear = simulation_start_year,
-  `input.soil.name` = input_soil_path
+  `input.soil.name` = input_soil_path,
+  landuse = "yes"
 )
 
 spinup_config_details <- lpjmlkit::write_config(
@@ -61,7 +62,8 @@ simulation_params <- tibble::tibble(
   nspinup = 0,
   firstyear = simulation_start_year,
   lastyear = simulation_end_year,
-  `input.soil.name` = input_soil_path
+  `input.soil.name` = input_soil_path,
+  landuse = "yes"
 )
 
 simulation_config_details <- lpjmlkit::write_config(
