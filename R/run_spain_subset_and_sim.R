@@ -22,31 +22,7 @@ use_cores <- 1
 # Actual simulation year ranges (after the spinup)
 simulation_start_year <- 1901
 simulation_end_year <- 1902
-
-# Only spinup phase, no simulation
-# I wrote firstyear/lastyear for simulation_start_year because I didn't
-# know how to choose no years at all
-# Though I wrote everything in one script, spinup is meant to be run only once
-spinup_params <- tibble::tibble(
-  sim_name = "spinup",
-  inpath = file.path(model_path, "inputs"),
-  startgrid = startgrid,
-  endgrid = endgrid,
-  river_routing = FALSE,
-  nspinup = 2,
-  firstyear = simulation_start_year,
-  lastyear = simulation_start_year,
-  `input.soil.name` = input_soil_path,
-  landuse = "yes"
-)
-
-spinup_config_details <- lpjmlkit::write_config(
-  x = spinup_params,
-  model_path = model_path,
-  sim_path = sim_path,
-  debug = TRUE
-)
-
+nspinup <- 2
 
 # Actual simulation scenarios after spinup. Tibble can have multiple rows,
 # one for each scenario to simulate. It uses the `-DFROM_RESTART` macro
@@ -54,14 +30,12 @@ spinup_config_details <- lpjmlkit::write_config(
 simulation_params <- tibble::tibble(
   sim_name = "scenario_1",
   inpath = file.path(model_path, "inputs"),
-  `-DFROM_RESTART` = TRUE,
-  restart_filename = "restart/spinup/restart.lpj",
   startgrid = startgrid,
   endgrid = endgrid,
   river_routing = FALSE,
-  nspinup = 0,
   firstyear = simulation_start_year,
   lastyear = simulation_end_year,
+  nspinup = nspinup,
   `input.soil.name` = input_soil_path,
   landuse = "yes"
 )
@@ -75,15 +49,6 @@ simulation_config_details <- lpjmlkit::write_config(
 
 # Previous was just setting up configuration, now actually running the model
 
-# As mentioned before, this can be run only once
-spinup_run_details <- lpjmlkit::run_lpjml(
-  spinup_config_details,
-  model_path,
-  sim_path,
-  run_cmd = stringr::str_glue("mpirun -np {use_cores} ")
-)
-
-# This runs the simulations starting after the spinup
 simulation_run_details <- lpjmlkit::run_lpjml(
   simulation_config_details,
   model_path,
